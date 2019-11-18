@@ -5,6 +5,7 @@ This is a script to demonstrate provisioning a couple VDCs each with an Internet
 The script will output to the terminal.
 
 Example Usage:
+
 ```bash
 bin/create-vdc-with-edge-portal-api-demo --user-email=ccouzens+api+demo@ukcloud.com --user-api-name=6395.676.0e09ab --portal-host=portal.skyscapecloud.com --vcloud-api-host=api.vcd.pod0000b.sys00005.portal.skyscapecloud.com --org-name=421-676-2-72a745 funfzehn sechszehn
 Please enter user password:
@@ -27,14 +28,14 @@ building 'zwei' edge-gateway ........................ done.
 
 ### Portal
 
-* `POST /api/authenticate`
-* `POST /api/accounts/:account_id/vorgs/:vorg_id/vdcs`
-* `GET /api/vdc-builds/:build_id`
-* `POST /api/accounts/:account_id/vorgs/:vorg_id/vdcs/:vdc_urn/edge-gateways`
-* `GET /api/edge-gateway-builds/:build_id`
+- `POST /api/authenticate`
+- `POST /api/accounts/:account_id/vorgs/:vorg_id/vdcs`
+- `GET /api/vdc-builds/:build_id`
+- `POST /api/accounts/:account_id/vorgs/:vorg_id/vdcs/:vdc_urn/edge-gateways`
+- `GET /api/edge-gateway-builds/:build_id`
 
 ### vCloud Director
 
-* `POST /api/sessions`
-* `POST /api/org`
-* `GET /api/org/:vorg_urn`
+- `POST /api/sessions`
+- `POST /api/org`
+- `GET /api/org/:vorg_urn`

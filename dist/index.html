@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Create VDC demo</title>
+  </head>
+  <body>
+    <h1>Create VDC with edge Portal API demo</h1>
+    <form>
+      <label for="portal_email">Portal email</label>
+      <input id="portal_email" type="email" />
+      <label for="vcloud_url">vCloud URL</label>
+      <input
+        id="vcloud_url"
+        disabled
+        value="https://api.vcd.pod0000b.sys00005.portal.skyscapecloud.com/"
+      />
+      <label for="vcloud_username">vCloud Username</label>
+      <input id="vcloud_username" />
+      <label for="vcloud_org">vCloud Org</label>
+      <input id="vcloud_org" />
+      <label for="password">Password</label>
+      <input id="password" type="password" />
+      <input type="submit" value="Go" />
+    </form>
+    <dl>
+      <dt>vCloud full username</dt>
+      <dd id="vcloud_full_username"></dd>
+      <dt>vCloud login url</dt>
+      <dd id="vcloud_login_url"></dd>
+    </dl>
+    <script src="./main.js"></script>
+  </body>
+</html>
