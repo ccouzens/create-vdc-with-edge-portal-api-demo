@@ -32,7 +32,7 @@ const go = async (
 };
 
 const inputValue = (id: string): string => {
-  const element = <HTMLInputElement>document.getElementById(id);
+  const element = document.getElementsByTagName("input").namedItem(id);
   if (element === null) {
     throw `Expected document.getElementById(${id}) to not be null`;
   }
@@ -52,11 +52,9 @@ const textCallback = (id: string): ((text: string) => void) => {
 (async () => {
   await navigator.serviceWorker.register("/serviceWorker.js");
 
-  const inputEl = <HTMLInputElement>document.getElementById("vcloud_org");
-  if (inputEl === null) {
-    throw "Expected to find an input element";
-  }
-  const formEl = inputEl.form;
+  const formEl = document
+    .getElementsByTagName("form")
+    .namedItem("create_vdc_with_edge_form");
   if (formEl === null) {
     throw "Expected on page form";
   }
