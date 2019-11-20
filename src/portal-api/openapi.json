@@ -1,0 +1,112 @@
+{
+    "openapi": "3.0.2",
+    "info": {
+        "title": "UKCloud Portal API",
+        "version": "development"
+    },
+    "servers": [
+        {
+            "url": "https://portal.skyscapecloud.com/",
+            "description": "UKCloud production assured Portal"
+        }
+    ],
+    "components": {
+        "schemas": {},
+        "responses": {
+            "Unauthorized": {
+                "description": "The user could not be authenticated"
+            }
+        },
+        "securitySchemes": {
+            "sessionCookie": {
+                "type": "apiKey",
+                "name": "rack.session",
+                "in": "cookie"
+            }
+        }
+    },
+    "paths": {
+        "/api/authenticate": {
+            "post": {
+                "summary": "Authenticates your API session",
+                "externalDocs": {
+                    "url": "https://docs.ukcloud.com/articles/portal/ptl-ref-portal-api.html#post-apiauthenticate"
+                },
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["email", "password"],
+                                "additionalProperties": false,
+                                "properties": {
+                                    "email": {
+                                        "description": "User's email address",
+                                        "type": "string",
+                                        "format": "email"
+                                    },
+                                    "password": {
+                                        "description": "User's password",
+                                        "type": "string",
+                                        "format": "password"
+                                    }
+                                }
+                            },
+                            "example": {"email": "email@example.com", "password": "password"}
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "The authentication request was successful",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["expire_after"],
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "expire_after": {
+                                            "description": "Amount of time (in seconds) that the session is valid for",
+                                            "type": "integer",
+                                            "format": "int32",
+                                            "minimum": 0
+                                        }
+                                    }
+                                },
+                                "example": {
+                                    "expire_after": 900
+                                }
+                            }
+                        }
+                    },
+                    "401":  {
+                        "$ref": "#/components/responses/Unauthorized"
+                    }
+                }
+            }
+        },
+        "/api/ping": {
+            "get": {
+                "summary": "An endpoint to test API functionality",
+                "externalDocs": {
+                    "url": "https://docs.ukcloud.com/articles/portal/ptl-ref-portal-api.html#get-apiping"
+                },
+                "responses": {
+                    "200": {
+                        "description": "The request was successful"
+                    },
+                    "401":  {
+                        "$ref": "#/components/responses/Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    }
+                ]
+            }
+        }
+    }
+}
