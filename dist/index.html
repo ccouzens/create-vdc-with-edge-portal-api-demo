@@ -2,7 +2,56 @@
 <html>
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1" />
     <title>Create VDC demo</title>
+    <style type="text/css">
+      :root {
+        --min-touch-target: 7mm;
+      }
+
+      form#create_vdc_with_edge_form {
+        grid-template-columns: 1fr;
+        display: grid;
+        column-gap: 1em;
+        align-items: center;
+      }
+
+      form#create_vdc_with_edge_form label {
+        grid-column: 1 / 2;
+      }
+
+      form#create_vdc_with_edge_form input {
+        grid-column: -2 / -1;
+      }
+
+      @media (any-pointer: coarse) {
+        input,
+        label {
+          min-height: calc(var(--min-touch-target) / 2);
+        }
+        input[type="submit"] {
+          min-height: var(--min-touch-target);
+        }
+        input {
+          min-width: var(--min-touch-target);
+        }
+      }
+
+      @media (min-width: 30em) {
+        form#create_vdc_with_edge_form {
+          grid-template-columns: 10em minmax(auto, 30em);
+        }
+        form#create_vdc_with_edge_form label {
+          text-align: right;
+        }
+      }
+
+      @media (any-pointer: coarse) and (min-width: 30em) {
+        input {
+          min-height: var(--min-touch-target);
+        }
+      }
+    </style>
   </head>
   <body>
     <h1>Create VDC with edge Portal API demo</h1>
