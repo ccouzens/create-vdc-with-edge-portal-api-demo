@@ -10,7 +10,9 @@
     "prettier:write": "prettier --write *.ts *.json *.md src/**.ts *.js dist/index.html",
     "build": "webpack --mode production",
     "devbuild": "webpack --mode development --watch",
-    "serve": "nginx -c ./nginx.conf -g 'daemon off;' -p \"$(pwd)\""
+    "serve": "nginx -c ./nginx.conf -g 'daemon off;' -p \"$(pwd)\"",
+    "serve:podman": "podman container run --rm -p 8000:8000 -v ./dist:/etc/nginx/dist:ro,Z -v ./nginx.conf:/etc/nginx/nginx.conf:ro,Z nginx:1.17-alpine",
+    "serve:docker": "docker container run --rm -p 8000:8000 -v ./dist:/etc/nginx/dist:ro -v ./nginx.conf:/etc/nginx/nginx.conf:ro nginx:1.17-alpine"
   },
   "repository": {
     "type": "git",
