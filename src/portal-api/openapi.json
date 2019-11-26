@@ -1,112 +1,301 @@
 {
-    "openapi": "3.0.2",
-    "info": {
-        "title": "UKCloud Portal API",
-        "version": "development"
-    },
-    "servers": [
-        {
-            "url": "https://portal.skyscapecloud.com/",
-            "description": "UKCloud production assured Portal"
-        }
-    ],
-    "components": {
-        "schemas": {},
-        "responses": {
-            "Unauthorized": {
-                "description": "The user could not be authenticated"
-            }
-        },
-        "securitySchemes": {
-            "sessionCookie": {
-                "type": "apiKey",
-                "name": "rack.session",
-                "in": "cookie"
-            }
-        }
-    },
-    "paths": {
-        "/api/authenticate": {
-            "post": {
-                "summary": "Authenticates your API session",
-                "externalDocs": {
-                    "url": "https://docs.ukcloud.com/articles/portal/ptl-ref-portal-api.html#post-apiauthenticate"
-                },
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "type": "object",
-                                "required": ["email", "password"],
-                                "additionalProperties": false,
-                                "properties": {
-                                    "email": {
-                                        "description": "User's email address",
-                                        "type": "string",
-                                        "format": "email"
-                                    },
-                                    "password": {
-                                        "description": "User's password",
-                                        "type": "string",
-                                        "format": "password"
-                                    }
-                                }
-                            },
-                            "example": {"email": "email@example.com", "password": "password"}
-                        }
-                    },
-                    "required": true
-                },
-                "responses": {
-                    "201": {
-                        "description": "The authentication request was successful",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "required": ["expire_after"],
-                                    "additionalProperties": false,
-                                    "properties": {
-                                        "expire_after": {
-                                            "description": "Amount of time (in seconds) that the session is valid for",
-                                            "type": "integer",
-                                            "format": "int32",
-                                            "minimum": 0
-                                        }
-                                    }
-                                },
-                                "example": {
-                                    "expire_after": 900
-                                }
-                            }
-                        }
-                    },
-                    "401":  {
-                        "$ref": "#/components/responses/Unauthorized"
-                    }
-                }
-            }
-        },
-        "/api/ping": {
-            "get": {
-                "summary": "An endpoint to test API functionality",
-                "externalDocs": {
-                    "url": "https://docs.ukcloud.com/articles/portal/ptl-ref-portal-api.html#get-apiping"
-                },
-                "responses": {
-                    "200": {
-                        "description": "The request was successful"
-                    },
-                    "401":  {
-                        "$ref": "#/components/responses/Unauthorized"
-                    }
-                },
-                "security": [
-                    {
-                        "sessionCookie": []
-                    }
-                ]
-            }
-        }
+  "openapi": "3.0.2",
+  "info": {
+    "title": "UKCloud Portal API",
+    "version": "development"
+  },
+  "servers": [
+    {
+      "url": "https://portal.skyscapecloud.com/",
+      "description": "UKCloud production assured Portal"
     }
+  ],
+  "components": {
+    "schemas": {},
+    "responses": {
+      "Unauthorized": {
+        "description": "The user could not be authenticated"
+      }
+    },
+    "securitySchemes": {
+      "sessionCookie": {
+        "type": "apiKey",
+        "name": "rack.session",
+        "in": "cookie"
+      }
+    }
+  },
+  "paths": {
+    "/api/accounts/:account_id/api_credentials": {
+      "get": {
+        "summary": "Returns a list of vCloud API credentials associated with the specified account",
+        "externalDocs": {
+          "url": "https://docs.ukcloud.com/articles/portal/ptl-ref-portal-api.html#get-apiaccountsaccount_idapi_credentials"
+        },
+        "responses": {
+          "200": {
+            "description": "The vCloud Director API credentials for a given account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "The vCloud Director API credentials for a given account",
+                  "type": "object",
+                  "additionalProperties": {
+                    "additionalProperties": false,
+                    "type": "object",
+                    "properties": {
+                      "service_id": {
+                        "pattern": "^\\d+-\\d+-\\d+-[a-zA-Z0-9]{5,6}$",
+                        "type": "string"
+                      },
+                      "username": {
+                        "pattern": "^\\d+.\\d+.[a-zA-Z0-9]{6}@\\d+-\\d+-\\d+-[a-zA-Z0-9]{5,6}$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "service_id",
+                      "username"
+                    ]
+                  }
+                },
+                "example": {
+                  "UKCloud Demo (1-1-1-9836cf)": {
+                    "service_id": "1-1-1-9836cf",
+                    "username": "11.12.132f4c@1-1-1-9836cf"
+                  },
+                  "UKCloud Test (1-1-2-883623)": {
+                    "service_id": "1-1-2-883623",
+                    "username": "11.12.132f4c@1-1-2-883623"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      },
+      "parameters": [
+        {
+          "name": "account_id",
+          "in": "path",
+          "description": "The ID of your account",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/api/accounts/:account_id/vorgs/:vorg_id/vdcs": {
+      "get": {
+        "summary": "Returns a list of basic information about the virtual data centres (VDCs) in the specified account under the specified vOrg",
+        "externalDocs": {
+          "url": "https://docs.ukcloud.com/articles/portal/ptl-ref-portal-api.html#get-apiaccountsaccount_idvorgsvorg_idvdcs"
+        },
+        "responses": {
+          "200": {
+            "description": "The VDCs within this vOrg",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "title": "VDCs",
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "pattern": "^urn:vcloud:vdc:[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "VDC"
+                            ]
+                          },
+                          "attributes": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "name"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "type",
+                          "attributes"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "data": [
+                    {
+                      "id": "53-12-3",
+                      "type": "VDC",
+                      "attributes": {
+                        "name": "My VDC"
+                      }
+                    },
+                    {
+                      "id": "53-12-5",
+                      "type": "VDC",
+                      "attributes": {
+                        "name": "My Second VDC"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      },
+      "parameters": [
+        {
+          "name": "account_id",
+          "in": "path",
+          "description": "The ID of your account",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        },
+        {
+          "name": "vorg_id",
+          "in": "path",
+          "description": "The ID of the vOrg in which the VDC resides",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/api/authenticate": {
+      "post": {
+        "summary": "Authenticates your API session",
+        "externalDocs": {
+          "url": "https://docs.ukcloud.com/articles/portal/ptl-ref-portal-api.html#post-apiauthenticate"
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "email": {
+                    "description": "User's email address",
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "description": "User's password",
+                    "type": "string",
+                    "format": "password"
+                  }
+                }
+              },
+              "example": {
+                "email": "email@example.com",
+                "password": "password"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The authentication request was successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "expire_after"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "expire_after": {
+                      "description": "Amount of time (in seconds) that the session is valid for",
+                      "type": "integer",
+                      "format": "int32",
+                      "minimum": 0
+                    }
+                  }
+                },
+                "example": {
+                  "expire_after": 900
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/ping": {
+      "get": {
+        "summary": "An endpoint to test API functionality",
+        "externalDocs": {
+          "url": "https://docs.ukcloud.com/articles/portal/ptl-ref-portal-api.html#get-apiping"
+        },
+        "responses": {
+          "200": {
+            "description": "The request was successful"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    }
+  }
 }
