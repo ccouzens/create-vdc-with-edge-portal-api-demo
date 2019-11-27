@@ -26,6 +26,56 @@
     }
   },
   "paths": {
+    "/api/accounts": {
+      "get": {
+        "summary": "Returns a list of accounts associated with the current user",
+        "externalDocs": {
+          "url": "https://docs.ukcloud.com/articles/portal/ptl-ref-portal-api.html#get-apiaccounts"
+        },
+        "responses": {
+          "200": {
+            "description": "The request was successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "The Portal accounts that your user has access to",
+                  "items": {
+                    "properties": {
+                      "id": {
+                        "description": "The ID of the account",
+                        "type": "integer"
+                      },
+                      "name": {
+                        "description": "The name of the account",
+                        "type": "string"
+                      }
+                    },
+                    "required": ["id", "name"],
+                    "type": "object",
+                    "additionalProperties": false
+                  },
+                  "type": "array",
+                  "uniqueItems": true
+                },
+                "example": [
+                  {
+                    "name": "UKCloud Development Team",
+                    "id": 48
+                  },
+                  {
+                    "name": "Demo",
+                    "id": 1
+                  }
+                ]
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
     "/api/accounts/:account_id/api_credentials": {
       "get": {
         "summary": "Returns a list of vCloud API credentials associated with the specified account",
@@ -53,10 +103,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "service_id",
-                      "username"
-                    ]
+                    "required": ["service_id", "username"]
                   }
                 },
                 "example": {
@@ -109,9 +156,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "data"
-                  ],
+                  "required": ["data"],
                   "additionalProperties": false,
                   "properties": {
                     "data": {
@@ -126,9 +171,7 @@
                           },
                           "type": {
                             "type": "string",
-                            "enum": [
-                              "VDC"
-                            ]
+                            "enum": ["VDC"]
                           },
                           "attributes": {
                             "type": "object",
@@ -137,16 +180,10 @@
                                 "type": "string"
                               }
                             },
-                            "required": [
-                              "name"
-                            ]
+                            "required": ["name"]
                           }
                         },
-                        "required": [
-                          "id",
-                          "type",
-                          "attributes"
-                        ]
+                        "required": ["id", "type", "attributes"]
                       }
                     }
                   }
@@ -218,10 +255,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "email",
-                  "password"
-                ],
+                "required": ["email", "password"],
                 "additionalProperties": false,
                 "properties": {
                   "email": {
@@ -251,9 +285,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "expire_after"
-                  ],
+                  "required": ["expire_after"],
                   "additionalProperties": false,
                   "properties": {
                     "expire_after": {

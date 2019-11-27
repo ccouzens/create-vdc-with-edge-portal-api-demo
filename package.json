@@ -5,9 +5,10 @@
   "private": true,
   "module": "main.js",
   "scripts": {
+    "generate-api": "openapi-generator generate -i docs/portal-api/openapi.json -g typescript-axios -o generated/portal-api -c generated/portal-api-options.json",
     "tsc": "tsc",
     "test": "jest",
-    "prettier:write": "prettier --write *.ts *.json *.md src/**.ts *.js dist/index.html",
+    "prettier:write": "prettier --write *.ts *.json *.md src/**.ts *.js dist/index.html docs/*/*.json */*.json",
     "build": "webpack --mode production",
     "devbuild": "webpack --mode development --watch",
     "serve": "nginx -c ./nginx.conf -g 'daemon off;' -p \"$(pwd)\"",
@@ -24,8 +25,12 @@
     "url": "https://github.com/ccouzens/create-vdc-with-edge-portal-api-demo/issues"
   },
   "homepage": "https://github.com/ccouzens/create-vdc-with-edge-portal-api-demo#readme",
-  "dependencies": {},
+  "dependencies": {
+    "@ccouzens/ukcloud-portal-api": "file:generated/portal-api/"
+  },
   "devDependencies": {
+    "@openapitools/openapi-generator-cli": "^1.0.7-4.2.1",
+    "@types/node": "^12.12.14",
     "@vcd/bindings": "^9.1.1",
     "prettier": "^1.19.1",
     "ts-loader": "^6.2.1",

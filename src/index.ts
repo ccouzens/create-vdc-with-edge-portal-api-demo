@@ -1,8 +1,11 @@
 /// <reference lib="dom" />
 
 import { vcloud } from "@vcd/bindings";
+// import { DefaultApi } from "@ccouzens/ukcloud-portal-api";
 
 const go = async (
+  _portalEmail: string,
+  _password: string,
   vcloudUrl: string,
   vcloudUsername: string,
   vcloudOrg: string,
@@ -29,6 +32,11 @@ const go = async (
     throw "Expected version32 to have a loginUrl";
   }
   loginUrlCallback(version32.loginUrl);
+
+  // const api = new DefaultApi();
+  // console.log(
+  //   await api.apiAuthenticatePost({ email: portalEmail, password: password })
+  // );
 };
 
 const inputValue = (id: string): string => {
@@ -62,6 +70,8 @@ const textCallback = (id: string): ((text: string) => void) => {
   formEl.addEventListener("submit", event => {
     event.preventDefault();
     go(
+      inputValue("portal_email"),
+      inputValue("password"),
       inputValue("vcloud_url"),
       inputValue("vcloud_username"),
       inputValue("vcloud_org"),
