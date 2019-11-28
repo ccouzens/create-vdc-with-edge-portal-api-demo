@@ -24,7 +24,7 @@ const webConfig = {
     rules: [{ test: /\.ts$/, use: "ts-loader", exclude: /node_modules/ }]
   },
   resolve: {
-    extensions: ["ts"]
+    extensions: [".ts", ".tsx", ".js", ".json"]
   }
 };
 

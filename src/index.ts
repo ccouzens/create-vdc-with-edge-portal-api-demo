@@ -1,11 +1,11 @@
 /// <reference lib="dom" />
 
 import { vcloud } from "@vcd/bindings";
-// import { DefaultApi } from "@ccouzens/ukcloud-portal-api";
+import { DefaultApi } from "@ccouzens/ukcloud-portal-api";
 
 const go = async (
-  _portalEmail: string,
-  _password: string,
+  portalEmail: string,
+  password: string,
   vcloudUrl: string,
   vcloudUsername: string,
   vcloudOrg: string,
@@ -33,10 +33,10 @@ const go = async (
   }
   loginUrlCallback(version32.loginUrl);
 
-  // const api = new DefaultApi();
-  // console.log(
-  //   await api.apiAuthenticatePost({ email: portalEmail, password: password })
-  // );
+  const api = new DefaultApi();
+  console.log(
+    await api.apiAuthenticatePost({ email: portalEmail, password: password })
+  );
 };
 
 const inputValue = (id: string): string => {
