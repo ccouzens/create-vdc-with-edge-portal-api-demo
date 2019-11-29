@@ -58,7 +58,10 @@ const textCallback = (id: string): ((text: string) => void) => {
 };
 
 (async () => {
-  await navigator.serviceWorker.register("/serviceWorker.js");
+  const serviceWorker = navigator.serviceWorker;
+  if (serviceWorker !== undefined) {
+    await serviceWorker.register("/serviceWorker.js");
+  }
 
   const formEl = document
     .getElementsByTagName("form")
