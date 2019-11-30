@@ -15,5 +15,19 @@ swSelf.addEventListener("fetch", function(event) {
   }`;
   requestUrl.host = swSelf.location.host;
   requestUrl.protocol = swSelf.location.protocol;
-  event.respondWith(fetch(requestUrl.href, request));
+  event.respondWith(
+    request.blob().then(body =>
+      fetch(requestUrl.href, {
+        method: request.method,
+        headers: request.headers,
+        body: body.size == 0 ? null : body,
+        mode: request.mode,
+        credentials: request.credentials,
+        cache: request.cache,
+        redirect: request.redirect,
+        referrer: request.referrer,
+        integrity: request.integrity
+      })
+    )
+  );
 });
