@@ -32,22 +32,26 @@ fn echo() -> impl Fn(Request<Body>) -> BoxFut {
                 {
                     Ok(client_req) => {
                         Box::new(client.request(client_req).then(|client_response_result| {
-                            *server_response.body_mut() = match client_response_result {
+                            match client_response_result {
                                 Ok(client_response) => {
                                     let (parts, body) = client_response.into_parts();
                                     *server_response.headers_mut() = parts.headers;
                                     *server_response.status_mut() = parts.status;
                                     *server_response.version_mut() = parts.version;
-                                    Body::wrap_stream(body)
+                                    *server_response.body_mut() = Body::wrap_stream(body);
                                 }
-                                Err(err) => Body::from(format!("Error: {}", err)),
+                                Err(err) => {
+                                    eprintln!("client response error: {}", err);
+                                    *server_response.status_mut() =
+                                        StatusCode::INTERNAL_SERVER_ERROR;
+                                }
                             };
                             Ok(server_response)
                         }))
                     }
                     Err(err) => {
                         *server_response.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
-                        *server_response.body_mut() = Body::from(format!("Error: {}", err));
+                        eprintln!("request builder error: {}", err);
                         Box::new(future::ok(server_response))
                     }
                 }
@@ -60,13 +64,12 @@ fn echo() -> impl Fn(Request<Body>) -> BoxFut {
     }
 }
 
-fn main() -> Result<(), hyper::error::Error> {
+fn main() {
     let addr = ([127, 0, 0, 1], 3000).into();
 
-    let server = Server::try_bind(&addr)?
+    let server = Server::bind(&addr)
         .serve(|| service_fn(echo()))
         .map_err(|e| eprintln!("server error: {}", e));
 
     hyper::rt::run(server);
-    Ok(())
 }
