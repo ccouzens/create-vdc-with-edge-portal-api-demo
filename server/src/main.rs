@@ -1,13 +1,11 @@
 use cookie::Cookie;
-use futures::future;
 use http::header::HeaderMap;
-use hyper::rt::Future;
+use hyper::service::make_service_fn;
 use hyper::service::service_fn;
 use hyper::StatusCode;
 use hyper::{Body, Client, Request, Response, Server};
 use hyper_tls::HttpsConnector;
-
-type BoxFut = Box<dyn Future<Item = Response<Body>, Error = hyper::Error> + Send>;
+use std::convert::Infallible;
 
 fn split_path(path: &str) -> Option<[&str; 4]> {
     let mut path_parts = path.splitn(4, '/');
@@ -30,7 +28,7 @@ fn split_path_test() {
 fn cleanse_server_headers(headers: &mut HeaderMap) {
     headers.remove(http::header::STRICT_TRANSPORT_SECURITY);
     let mut cookies = Vec::new();
-    if let Ok(http::header::Entry::Occupied(entry)) = headers.entry(http::header::SET_COOKIE) {
+    if let http::header::Entry::Occupied(entry) = headers.entry(http::header::SET_COOKIE) {
         for value in entry.iter() {
             if let Ok(svalue) = value.to_str() {
                 if let Ok(mut cookie) = Cookie::parse(svalue) {
@@ -85,64 +83,66 @@ fn cleanse_client_headers(headers: &mut HeaderMap) {
     headers.remove(http::header::HOST);
 }
 
-fn echo() -> impl Fn(Request<Body>) -> BoxFut {
-    let https = HttpsConnector::new(4).expect("TLS initialization failed");
+async fn echo(server_req: Request<Body>) -> Result<Response<Body>, Infallible> {
+    let https = HttpsConnector::new();
     let client = Client::builder().build::<_, hyper::Body>(https);
 
-    move |server_req: Request<Body>| -> BoxFut {
-        let mut server_response = Response::new(Body::empty());
-        match split_path(server_req.uri().path()) {
-            Some(["", "proxy", "portal-skyscapecloud-com", path]) => {
-                let mut client_req_builder = Request::builder();
-                client_req_builder.method(server_req.method());
-                client_req_builder.uri(format!("https://portal.skyscapecloud.com/{}", path));
-                let (server_req_parts, body) = server_req.into_parts();
-                if let Some(client_req_headers) = client_req_builder.headers_mut() {
-                    *client_req_headers = server_req_parts.headers;
-                    cleanse_client_headers(client_req_headers);
-                }
-                match client_req_builder.body(body) {
-                    Ok(client_req) => {
-                        Box::new(client.request(client_req).then(|client_response_result| {
-                            match client_response_result {
-                                Ok(client_response) => {
-                                    let (parts, body) = client_response.into_parts();
-                                    *server_response.headers_mut() = parts.headers;
-                                    cleanse_server_headers(server_response.headers_mut());
-                                    *server_response.status_mut() = parts.status;
-                                    *server_response.version_mut() = parts.version;
-                                    *server_response.body_mut() = Body::wrap_stream(body);
-                                }
-                                Err(err) => {
-                                    eprintln!("client response error: {}", err);
-                                    *server_response.status_mut() =
-                                        StatusCode::INTERNAL_SERVER_ERROR;
-                                }
-                            };
-                            Ok(server_response)
-                        }))
+    let (server_req_parts, body) = server_req.into_parts();
+
+    match split_path(server_req_parts.uri.path()) {
+        Some(["", "proxy", "portal-skyscapecloud-com", path]) => {
+            let mut client_req_builder = Request::builder()
+                .method(server_req_parts.method)
+                .uri(format!("https://portal.skyscapecloud.com/{}", path));
+            if let Some(client_req_headers) = client_req_builder.headers_mut() {
+                *client_req_headers = server_req_parts.headers;
+                cleanse_client_headers(client_req_headers);
+            }
+            match client_req_builder.body(body) {
+                Ok(client_req) => match client.request(client_req).await {
+                    Ok(client_response) => {
+                        let (parts, body) = client_response.into_parts();
+                        let mut server_response = Response::new(Body::wrap_stream(body));
+
+                        *server_response.headers_mut() = parts.headers;
+                        cleanse_server_headers(server_response.headers_mut());
+                        *server_response.status_mut() = parts.status;
+                        *server_response.version_mut() = parts.version;
+                        Ok(server_response)
                     }
                     Err(err) => {
-                        *server_response.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
-                        eprintln!("request builder error: {}", err);
-                        Box::new(future::ok(server_response))
+                        eprintln!("client response error: {}", err);
+                        Ok(Response::builder()
+                            .status(StatusCode::INTERNAL_SERVER_ERROR)
+                            .body(Body::empty())
+                            .unwrap())
                     }
+                },
+                Err(err) => {
+                    eprintln!("request builder error: {}", err);
+                    Ok(Response::builder()
+                        .status(StatusCode::INTERNAL_SERVER_ERROR)
+                        .body(Body::empty())
+                        .unwrap())
                 }
             }
-            _ => {
-                *server_response.status_mut() = StatusCode::NOT_FOUND;
-                Box::new(future::ok(server_response))
-            }
         }
+        _ => Ok(Response::builder()
+            .status(StatusCode::NOT_FOUND)
+            .body(Body::empty())
+            .unwrap()),
     }
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let addr = ([127, 0, 0, 1], 3000).into();
 
-    let server = Server::bind(&addr)
-        .serve(|| service_fn(echo()))
-        .map_err(|e| eprintln!("server error: {}", e));
+    let make_svc = make_service_fn(|_conn| async { Ok::<_, Infallible>(service_fn(echo)) });
 
-    hyper::rt::run(server);
+    let server = Server::bind(&addr).serve(make_svc);
+
+    if let Err(e) = server.await {
+        eprintln!("server error: {}", e);
+    }
 }
