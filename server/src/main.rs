@@ -1,64 +1,64 @@
 use cookie::Cookie;
 use http::header::HeaderMap;
+use http::Uri;
 use hyper::service::make_service_fn;
 use hyper::service::service_fn;
 use hyper::StatusCode;
 use hyper::{Body, Client, Request, Response, Server};
 use hyper_tls::HttpsConnector;
 use std::convert::Infallible;
+use std::fmt::Display;
 
-fn split_path(path: &str) -> Option<[&str; 4]> {
-    let mut path_parts = path.splitn(4, '/');
-    Some([
-        path_parts.next()?,
-        path_parts.next()?,
-        path_parts.next()?,
-        path_parts.next()?,
-    ])
+fn split_path(path: &str) -> Option<[&str; 3]> {
+    let mut indices = path.match_indices('/');
+    let (_, b, c) = (indices.next()?.0, indices.next()?.0, indices.next()?.0);
+    Some([path.get(..b)?, path.get(b..c)?, path.get(c..)?])
 }
 
 #[test]
 fn split_path_test() {
     assert_eq!(
         split_path("/proxy/portal-skyscapecloud-com/api/authenticate"),
-        Some(["", "proxy", "portal-skyscapecloud-com", "api/authenticate"])
+        Some(["/proxy", "/portal-skyscapecloud-com", "/api/authenticate"])
     );
 }
 
-fn cleanse_server_headers(headers: &mut HeaderMap) {
-    headers.remove(http::header::STRICT_TRANSPORT_SECURITY);
-    let mut cookies = Vec::new();
-    if let http::header::Entry::Occupied(entry) = headers.entry(http::header::SET_COOKIE) {
-        for value in entry.iter() {
-            if let Ok(svalue) = value.to_str() {
-                if let Ok(mut cookie) = Cookie::parse(svalue) {
-                    let path = cookie.path().unwrap_or("/");
-                    if !path.starts_with('/') {
-                        continue;
-                    }
-                    let full_path = format!(
-                        "/proxy/portal-skyscapecloud-com/{}",
-                        path.get(1..).unwrap_or("")
-                    );
-                    cookie.set_path(full_path);
+fn cleanse_set_cookie(
+    header_value: &http::header::HeaderValue,
+) -> Option<http::header::HeaderValue> {
+    let cookie_str = header_value.to_str().ok()?;
+    let mut cookie = Cookie::parse(cookie_str).ok()?;
+    let path = cookie.path().unwrap_or("/");
+    if !path.starts_with('/') {
+        return None;
+    }
+    let full_path = format!(
+        "/proxy/portal-skyscapecloud-com/{}",
+        path.get(1..).unwrap_or("")
+    );
+    cookie.set_path(full_path);
+    cookie.set_secure(false);
+    cookie.set_same_site(cookie::SameSite::Strict);
+    Some(cookie.to_string().parse().ok()?)
+}
 
-                    cookie.set_secure(false);
-                    cookie.set_same_site(cookie::SameSite::Strict);
-                    if let Ok(cookie_header) = cookie.to_string().parse() {
-                        cookies.push(cookie_header);
-                    };
-                };
-            };
+fn cleanse_set_cookies(headers: &mut HeaderMap) {
+    if let http::header::Entry::Occupied(entry) = headers.entry(http::header::SET_COOKIE) {
+        let mut cookies: Vec<_> = entry.iter().filter_map(cleanse_set_cookie).collect();
+        headers.remove(http::header::SET_COOKIE);
+        for cookie in cookies.drain(..) {
+            headers.append(http::header::SET_COOKIE, cookie);
         }
     };
-    headers.remove(http::header::SET_COOKIE);
-    for cookie in cookies.drain(..) {
-        headers.append(http::header::SET_COOKIE, cookie);
-    }
+}
+
+fn cleanse_response_headers(headers: &mut HeaderMap) {
+    headers.remove(http::header::STRICT_TRANSPORT_SECURITY);
+    cleanse_set_cookies(headers);
 }
 
 #[test]
-fn cleanse_server_headers_test() {
+fn cleanse_response_headers_test() {
     let mut headers = HeaderMap::new();
     headers.append("content-type", "application/json".parse().unwrap());
     headers.append(
@@ -75,62 +75,52 @@ fn cleanse_server_headers_test() {
     let mut expected = HeaderMap::new();
     expected.append("content-type", "application/json".parse().unwrap());
     expected.append("set-cookie", "_session=f81; HttpOnly; SameSite=Strict; Path=/proxy/portal-skyscapecloud-com/api; Expires=Wed, 11 Dec 2019 21:47:38 GMT".parse().unwrap());
-    cleanse_server_headers(&mut headers);
+    cleanse_response_headers(&mut headers);
     assert_eq!(headers, expected);
 }
 
-fn cleanse_client_headers(headers: &mut HeaderMap) {
+fn cleanse_request_headers(headers: &mut HeaderMap) {
     headers.remove(http::header::HOST);
 }
 
-async fn echo(server_req: Request<Body>) -> Result<Response<Body>, Infallible> {
+fn error_response<T: Display>(err: T) -> Result<Response<Body>, Infallible> {
+    eprintln!("error: {}", err);
+    let mut response = Response::new(Body::empty());
+    *response.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
+    Ok(response)
+}
+
+async fn echo(mut request: Request<Body>) -> Result<Response<Body>, Infallible> {
     let https = HttpsConnector::new();
     let client = Client::builder().build::<_, hyper::Body>(https);
 
-    let (server_req_parts, body) = server_req.into_parts();
-
-    match split_path(server_req_parts.uri.path()) {
-        Some(["", "proxy", "portal-skyscapecloud-com", path]) => {
-            let mut client_req_builder = Request::builder()
-                .method(server_req_parts.method)
-                .uri(format!("https://portal.skyscapecloud.com/{}", path));
-            if let Some(client_req_headers) = client_req_builder.headers_mut() {
-                *client_req_headers = server_req_parts.headers;
-                cleanse_client_headers(client_req_headers);
-            }
-            match client_req_builder.body(body) {
-                Ok(client_req) => match client.request(client_req).await {
-                    Ok(client_response) => {
-                        let (parts, body) = client_response.into_parts();
-                        let mut server_response = Response::new(Body::wrap_stream(body));
-
-                        *server_response.headers_mut() = parts.headers;
-                        cleanse_server_headers(server_response.headers_mut());
-                        *server_response.status_mut() = parts.status;
-                        *server_response.version_mut() = parts.version;
-                        Ok(server_response)
+    match split_path(request.uri().path()) {
+        Some(["/proxy", "/portal-skyscapecloud-com", path]) => {
+            match Uri::builder()
+                .scheme("https")
+                .authority("portal.skyscapecloud.com")
+                .path_and_query(path)
+                .build()
+            {
+                Ok(client_url) => {
+                    cleanse_request_headers(request.headers_mut());
+                    *request.uri_mut() = client_url;
+                    match client.request(request).await {
+                        Ok(mut response) => {
+                            cleanse_response_headers(response.headers_mut());
+                            Ok(response)
+                        }
+                        Err(err) => error_response(err),
                     }
-                    Err(err) => {
-                        eprintln!("client response error: {}", err);
-                        Ok(Response::builder()
-                            .status(StatusCode::INTERNAL_SERVER_ERROR)
-                            .body(Body::empty())
-                            .unwrap())
-                    }
-                },
-                Err(err) => {
-                    eprintln!("request builder error: {}", err);
-                    Ok(Response::builder()
-                        .status(StatusCode::INTERNAL_SERVER_ERROR)
-                        .body(Body::empty())
-                        .unwrap())
                 }
+                Err(err) => error_response(err),
             }
         }
-        _ => Ok(Response::builder()
-            .status(StatusCode::NOT_FOUND)
-            .body(Body::empty())
-            .unwrap()),
+        _ => {
+            let mut response = Response::new(Body::empty());
+            *response.status_mut() = StatusCode::NOT_FOUND;
+            Ok(response)
+        }
     }
 }
 
