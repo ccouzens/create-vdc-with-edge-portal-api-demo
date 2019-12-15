@@ -8,10 +8,10 @@
     "generate-api": "openapi-generator generate -i docs/portal-api/openapi.json -g typescript-axios -o generated/portal-api -c generated/portal-api-options.json",
     "tsc": "tsc",
     "test": "(cd server; cargo test)",
-    "prettier:write": "prettier --write *.ts *.json *.md src/**.ts *.js dist/index.html docs/*/*.json */*.json",
+    "prettier:write": "prettier --write *.ts *.json *.md src/**.ts *.js dist/index.html docs/*/*.json */*.json && (cd server; cargo fmt)",
     "build": "webpack --mode production && (cd server; cargo build --release)",
-    "devrun": "webpack --mode development && (cd server; cargo run)",
-    "serve": "./server/target/release/server"
+    "devrun": "webpack --mode development && (cd server; cargo run portal.skyscapecloud.com)",
+    "serve": "./server/target/release/server portal.skyscapecloud.com"
   },
   "repository": {
     "type": "git",

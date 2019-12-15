@@ -8,8 +8,8 @@ use hyper::StatusCode;
 use hyper::{Body, Client, Request, Response, Server};
 use hyper_tls::HttpsConnector;
 use std::convert::Infallible;
+use std::env;
 use std::fmt::Display;
-use std::future::Future;
 
 fn split_path(path: &str) -> [Option<&str>; 3] {
     let mut indices = path.match_indices('/');
@@ -110,9 +110,22 @@ fn error_response<T: Display>(err: T) -> Result<Response<Body>, Infallible> {
     Ok(response)
 }
 
+fn valid_host_to_proxy(valid_hosts: &str, candidate_host: &str) -> bool {
+    candidate_host == valid_hosts || candidate_host.ends_with(&format!(".{}", valid_hosts))
+}
+
+#[test]
+fn test_valid_host_to_proxy() {
+    assert!(valid_host_to_proxy("a.b.c", "a.b.c"));
+    assert!(valid_host_to_proxy("a.b.c", "foo.a.b.c"));
+    assert!(!valid_host_to_proxy("a.b.c", "fooa.b.c"));
+    assert!(!valid_host_to_proxy("a.b.c", "a.b.c.foo"));
+}
+
 async fn proxy_server_filter(
     mut request: Request<Body>,
     client: Client<HttpsConnector<HttpConnector>>,
+    valid_hosts: &str,
 ) -> Result<Response<Body>, Infallible> {
     match request
         .uri()
@@ -120,9 +133,7 @@ async fn proxy_server_filter(
         .map(|path_and_query| split_path(path_and_query.as_str()))
     {
         Some([Some("proxy"), Some(proxied_server), Some(path_and_query)]) => {
-            if !proxied_server.ends_with(".portal.skyscapecloud.com")
-                && proxied_server != "portal.skyscapecloud.com"
-            {
+            if !valid_host_to_proxy(valid_hosts, proxied_server) {
                 return not_found_response();
             }
 
@@ -178,13 +189,15 @@ async fn proxy_server_filter(
     }
 }
 
-fn proxy_server(
-    request: Request<Body>,
-) -> impl Future<Output = Result<Response<Body>, Infallible>> {
+async fn proxy_server(request: Request<Body>) -> Result<Response<Body>, Infallible> {
     let client: Client<HttpsConnector<HttpConnector>> =
         Client::builder().build::<_, hyper::Body>(HttpsConnector::new());
 
-    proxy_server_filter(request, client)
+    let proxied_hosts = env::args()
+        .nth(1)
+        .unwrap_or_else(|| String::from("portal.skyscapecloud.com"));
+
+    proxy_server_filter(request, client, &proxied_hosts).await
 }
 
 #[tokio::main]
