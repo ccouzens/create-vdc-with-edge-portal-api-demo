@@ -11,18 +11,30 @@ use std::convert::Infallible;
 use std::fmt::Display;
 use std::future::Future;
 
-fn split_path(path: &str) -> Option<[&str; 3]> {
+fn split_path(path: &str) -> [Option<&str>; 3] {
     let mut indices = path.match_indices('/');
-    let (_, b, c) = (indices.next()?.0, indices.next()?.0, indices.next()?.0);
-    Some([path.get(1..b)?, path.get(b + 1..c)?, path.get(c..)?])
+    let (_, b, c) = (
+        indices.next(),
+        indices.next().map(|i| i.0),
+        indices.next().map(|i| i.0),
+    );
+    match (b, c) {
+        (Some(b), Some(c)) => [path.get(1..b), path.get(b + 1..c), path.get(c..)],
+        _ => [path.get(1..), None, None],
+    }
 }
 
 #[test]
 fn split_path_test() {
     assert_eq!(
         split_path("/proxy/portal.skyscapecloud.com/api/authenticate"),
-        Some(["proxy", "portal.skyscapecloud.com", "/api/authenticate"])
+        [
+            Some("proxy"),
+            Some("portal.skyscapecloud.com"),
+            Some("/api/authenticate")
+        ]
     );
+    assert_eq!(split_path("/style.css"), [Some("style.css"), None, None]);
 }
 
 fn modify_set_cookie<'a: 'b, 'b>(
@@ -105,9 +117,9 @@ async fn proxy_server_filter(
     match request
         .uri()
         .path_and_query()
-        .and_then(|path_and_query| split_path(path_and_query.as_str()))
+        .map(|path_and_query| split_path(path_and_query.as_str()))
     {
-        Some(["proxy", proxied_server, path_and_query]) => {
+        Some([Some("proxy"), Some(proxied_server), Some(path_and_query)]) => {
             if !proxied_server.ends_with(".portal.skyscapecloud.com")
                 && proxied_server != "portal.skyscapecloud.com"
             {
