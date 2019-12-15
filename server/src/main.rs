@@ -23,28 +23,28 @@ fn split_path_test() {
     );
 }
 
-fn cleanse_set_cookie(
-    header_value: &http::header::HeaderValue,
-) -> Option<http::header::HeaderValue> {
-    let cookie_str = header_value.to_str().ok()?;
-    let mut cookie = Cookie::parse(cookie_str).ok()?;
-    let path = cookie.path().unwrap_or("/");
-    if !path.starts_with('/') {
-        return None;
+fn modify_set_cookie<'a: 'b, 'b>(
+    path_base: &'a str,
+) -> impl Fn(&'b http::header::HeaderValue) -> Option<http::header::HeaderValue> {
+    move |header_value: &http::header::HeaderValue| {
+        let cookie_str = header_value.to_str().ok()?;
+        let mut cookie = Cookie::parse(cookie_str).ok()?;
+        let path = cookie.path().unwrap_or("/");
+        if !path.starts_with('/') {
+            return None;
+        }
+        let full_path = format!("{}{}", path_base, path);
+        cookie.set_path(full_path);
+        cookie.set_secure(false);
+        cookie.set_same_site(cookie::SameSite::Strict);
+        Some(cookie.to_string().parse().ok()?)
     }
-    let full_path = format!(
-        "/proxy/portal-skyscapecloud-com/{}",
-        path.get(1..).unwrap_or("")
-    );
-    cookie.set_path(full_path);
-    cookie.set_secure(false);
-    cookie.set_same_site(cookie::SameSite::Strict);
-    Some(cookie.to_string().parse().ok()?)
 }
 
-fn cleanse_set_cookies(headers: &mut HeaderMap) {
+fn cleanse_set_cookies(path_base: &str, headers: &mut HeaderMap) {
     if let http::header::Entry::Occupied(entry) = headers.entry(http::header::SET_COOKIE) {
-        let mut cookies: Vec<_> = entry.iter().filter_map(cleanse_set_cookie).collect();
+        let cookie_modifier = modify_set_cookie(path_base);
+        let mut cookies: Vec<_> = entry.iter().filter_map(cookie_modifier).collect();
         headers.remove(http::header::SET_COOKIE);
         for cookie in cookies.drain(..) {
             headers.append(http::header::SET_COOKIE, cookie);
@@ -52,9 +52,9 @@ fn cleanse_set_cookies(headers: &mut HeaderMap) {
     };
 }
 
-fn cleanse_response_headers(headers: &mut HeaderMap) {
+fn cleanse_response_headers(path_base: &str, headers: &mut HeaderMap) {
     headers.remove(http::header::STRICT_TRANSPORT_SECURITY);
-    cleanse_set_cookies(headers);
+    cleanse_set_cookies(path_base, headers);
 }
 
 #[test]
@@ -75,7 +75,7 @@ fn cleanse_response_headers_test() {
     let mut expected = HeaderMap::new();
     expected.append("content-type", "application/json".parse().unwrap());
     expected.append("set-cookie", "_session=f81; HttpOnly; SameSite=Strict; Path=/proxy/portal-skyscapecloud-com/api; Expires=Wed, 11 Dec 2019 21:47:38 GMT".parse().unwrap());
-    cleanse_response_headers(&mut headers);
+    cleanse_response_headers("/proxy/portal-skyscapecloud-com", &mut headers);
     assert_eq!(headers, expected);
 }
 
@@ -107,7 +107,10 @@ async fn echo(mut request: Request<Body>) -> Result<Response<Body>, Infallible> 
                     *request.uri_mut() = client_url;
                     match client.request(request).await {
                         Ok(mut response) => {
-                            cleanse_response_headers(response.headers_mut());
+                            cleanse_response_headers(
+                                "/proxy/portal-skyscapecloud-com",
+                                response.headers_mut(),
+                            );
                             Ok(response)
                         }
                         Err(err) => error_response(err),
