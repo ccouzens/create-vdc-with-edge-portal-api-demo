@@ -9,6 +9,7 @@ use hyper::{Body, Client, Request, Response, Server};
 use hyper_tls::HttpsConnector;
 use std::convert::Infallible;
 use std::fmt::Display;
+use std::future::Future;
 
 fn split_path(path: &str) -> Option<[&str; 3]> {
     let mut indices = path.match_indices('/');
@@ -97,10 +98,10 @@ fn error_response<T: Display>(err: T) -> Result<Response<Body>, Infallible> {
     Ok(response)
 }
 
-async fn echo(mut request: Request<Body>) -> Result<Response<Body>, Infallible> {
-    let client: Client<HttpsConnector<HttpConnector>> =
-        Client::builder().build::<_, hyper::Body>(HttpsConnector::new());
-
+async fn proxy_server_filter(
+    mut request: Request<Body>,
+    client: Client<HttpsConnector<HttpConnector>>,
+) -> Result<Response<Body>, Infallible> {
     match request
         .uri()
         .path_and_query()
@@ -138,11 +139,20 @@ async fn echo(mut request: Request<Body>) -> Result<Response<Body>, Infallible> 
     }
 }
 
+fn proxy_server(
+    request: Request<Body>,
+) -> impl Future<Output = Result<Response<Body>, Infallible>> {
+    let client: Client<HttpsConnector<HttpConnector>> =
+        Client::builder().build::<_, hyper::Body>(HttpsConnector::new());
+
+    proxy_server_filter(request, client)
+}
+
 #[tokio::main]
 async fn main() {
     let addr = ([127, 0, 0, 1], 3000).into();
 
-    let make_svc = make_service_fn(|_conn| async { Ok::<_, Infallible>(service_fn(echo)) });
+    let make_svc = make_service_fn(|_conn| async { Ok::<_, Infallible>(service_fn(proxy_server)) });
 
     let server = Server::bind(&addr).serve(make_svc);
 
