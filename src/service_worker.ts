@@ -10,9 +10,7 @@ swSelf.addEventListener("fetch", function(event) {
   ) {
     return;
   }
-  requestUrl.pathname = `${requestUrl.host.replace(/\./g, "-")}${
-    requestUrl.pathname
-  }`;
+  requestUrl.pathname = `/proxy/${requestUrl.host}${requestUrl.pathname}`;
   requestUrl.host = swSelf.location.host;
   requestUrl.protocol = swSelf.location.protocol;
   event.respondWith(

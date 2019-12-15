@@ -133,18 +133,45 @@ async fn proxy_server_filter(
                 .build()
             {
                 Ok(client_url) => {
-                    let proxied_server = String::from(proxied_server);
+                    let cookie_base_path = format!("/proxy/{}", proxied_server);
                     cleanse_request_headers(request.headers_mut());
                     *request.uri_mut() = client_url;
                     match client.request(request).await {
                         Ok(mut response) => {
-                            cleanse_response_headers(&proxied_server, response.headers_mut());
+                            cleanse_response_headers(&cookie_base_path, response.headers_mut());
                             Ok(response)
                         }
                         Err(err) => error_response(err),
                     }
                 }
                 Err(err) => error_response(err),
+            }
+        }
+        Some([Some(resource_name), None, None]) => {
+            let resource = match resource_name {
+                "" => Some((
+                    include_str!("../../dist/index.html"),
+                    "text/html; charset=UTF-8",
+                )),
+                "main.js" => Some((
+                    include_str!("../../dist/main.js"),
+                    "text/javascript; charset=UTF-8",
+                )),
+                "serviceWorker.js" => Some((
+                    include_str!("../../dist/serviceWorker.js"),
+                    "text/javascript; charset=UTF-8",
+                )),
+                _ => None,
+            };
+            match resource {
+                Some((content, mime_type)) => {
+                    let mut response = Response::new(Body::from(content));
+                    response
+                        .headers_mut()
+                        .insert(http::header::CONTENT_TYPE, mime_type.parse().unwrap());
+                    Ok(response)
+                }
+                None => not_found_response(),
             }
         }
         _ => not_found_response(),

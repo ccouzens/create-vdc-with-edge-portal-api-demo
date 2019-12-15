@@ -9,7 +9,7 @@ const workerConfig = {
     rules: [{ test: /\.ts$/, use: "ts-loader", exclude: /node_modules/ }]
   },
   resolve: {
-    extensions: ["ts"]
+    extensions: [".ts", ".js"]
   }
 };
 
@@ -24,7 +24,7 @@ const webConfig = {
     rules: [{ test: /\.ts$/, use: "ts-loader", exclude: /node_modules/ }]
   },
   resolve: {
-    extensions: [".ts", ".tsx", ".js", ".json"]
+    extensions: [".ts", ".js"]
   }
 };
 
