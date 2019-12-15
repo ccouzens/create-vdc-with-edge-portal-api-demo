@@ -12,14 +12,14 @@ use std::fmt::Display;
 fn split_path(path: &str) -> Option<[&str; 3]> {
     let mut indices = path.match_indices('/');
     let (_, b, c) = (indices.next()?.0, indices.next()?.0, indices.next()?.0);
-    Some([path.get(..b)?, path.get(b..c)?, path.get(c..)?])
+    Some([path.get(1..b)?, path.get(b + 1..c)?, path.get(c..)?])
 }
 
 #[test]
 fn split_path_test() {
     assert_eq!(
-        split_path("/proxy/portal-skyscapecloud-com/api/authenticate"),
-        Some(["/proxy", "/portal-skyscapecloud-com", "/api/authenticate"])
+        split_path("/proxy/portal.skyscapecloud.com/api/authenticate"),
+        Some(["proxy", "portal.skyscapecloud.com", "/api/authenticate"])
     );
 }
 
@@ -83,6 +83,12 @@ fn cleanse_request_headers(headers: &mut HeaderMap) {
     headers.remove(http::header::HOST);
 }
 
+fn not_found_response() -> Result<Response<Body>, Infallible> {
+    let mut response = Response::new(Body::empty());
+    *response.status_mut() = StatusCode::NOT_FOUND;
+    Ok(response)
+}
+
 fn error_response<T: Display>(err: T) -> Result<Response<Body>, Infallible> {
     eprintln!("error: {}", err);
     let mut response = Response::new(Body::empty());
@@ -95,22 +101,24 @@ async fn echo(mut request: Request<Body>) -> Result<Response<Body>, Infallible> 
     let client = Client::builder().build::<_, hyper::Body>(https);
 
     match split_path(request.uri().path()) {
-        Some(["/proxy", "/portal-skyscapecloud-com", path]) => {
+        Some(["proxy", proxied_server, path]) => {
+            if !proxied_server.ends_with(".portal.skyscapecloud.com") {
+                return not_found_response();
+            }
+
             match Uri::builder()
                 .scheme("https")
-                .authority("portal.skyscapecloud.com")
+                .authority(proxied_server)
                 .path_and_query(path)
                 .build()
             {
                 Ok(client_url) => {
+                    let proxied_server = String::from(proxied_server);
                     cleanse_request_headers(request.headers_mut());
                     *request.uri_mut() = client_url;
                     match client.request(request).await {
                         Ok(mut response) => {
-                            cleanse_response_headers(
-                                "/proxy/portal-skyscapecloud-com",
-                                response.headers_mut(),
-                            );
+                            cleanse_response_headers(&proxied_server, response.headers_mut());
                             Ok(response)
                         }
                         Err(err) => error_response(err),
@@ -119,11 +127,7 @@ async fn echo(mut request: Request<Body>) -> Result<Response<Body>, Infallible> 
                 Err(err) => error_response(err),
             }
         }
-        _ => {
-            let mut response = Response::new(Body::empty());
-            *response.status_mut() = StatusCode::NOT_FOUND;
-            Ok(response)
-        }
+        _ => not_found_response(),
     }
 }
 
