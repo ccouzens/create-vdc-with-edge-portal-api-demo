@@ -1,6 +1,7 @@
 use cookie::Cookie;
 use http::header::HeaderMap;
 use http::Uri;
+use hyper::client::HttpConnector;
 use hyper::service::make_service_fn;
 use hyper::service::service_fn;
 use hyper::StatusCode;
@@ -97,19 +98,25 @@ fn error_response<T: Display>(err: T) -> Result<Response<Body>, Infallible> {
 }
 
 async fn echo(mut request: Request<Body>) -> Result<Response<Body>, Infallible> {
-    let https = HttpsConnector::new();
-    let client = Client::builder().build::<_, hyper::Body>(https);
+    let client: Client<HttpsConnector<HttpConnector>> =
+        Client::builder().build::<_, hyper::Body>(HttpsConnector::new());
 
-    match split_path(request.uri().path()) {
-        Some(["proxy", proxied_server, path]) => {
-            if !proxied_server.ends_with(".portal.skyscapecloud.com") {
+    match request
+        .uri()
+        .path_and_query()
+        .and_then(|path_and_query| split_path(path_and_query.as_str()))
+    {
+        Some(["proxy", proxied_server, path_and_query]) => {
+            if !proxied_server.ends_with(".portal.skyscapecloud.com")
+                && proxied_server != "portal.skyscapecloud.com"
+            {
                 return not_found_response();
             }
 
             match Uri::builder()
                 .scheme("https")
                 .authority(proxied_server)
-                .path_and_query(path)
+                .path_and_query(path_and_query)
                 .build()
             {
                 Ok(client_url) => {
