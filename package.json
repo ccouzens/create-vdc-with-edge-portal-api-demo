@@ -7,8 +7,8 @@
   "scripts": {
     "generate-api": "openapi-generator generate -i docs/portal-api/openapi.json -g typescript-axios -o generated/portal-api -c generated/portal-api-options.json && openapi-generator generate -i docs/vcloud-rest/openapi.json -g typescript-axios -o generated/vcloud-rest -c generated/vcloud-rest-options.json",
     "tsc": "tsc",
-    "test": "(cd server; cargo test)",
-    "prettier:write": "prettier --write *.ts *.json *.md src/**.ts *.js dist/index.html docs/*/*.json docs/*/*/*.json docs/*/*/*/*.json docs/*/*/*/*/*.json */*.json && (cd server; cargo fmt)",
+    "test": "mocha && (cd server; cargo test)",
+    "prettier:write": "prettier --write *.ts *.json .mocharc.json *.md src/**.ts *.js dist/index.html docs/*/*.json docs/*/*/*.json docs/*/*/*/*.json docs/*/*/*/*/*.json */*.json && (cd server; cargo fmt)",
     "build": "webpack --mode production && (cd server; cargo build --release)",
     "devrun": "webpack --mode development && (cd server; cargo run 127.0.0.1:3000 portal.skyscapecloud.com)",
     "serve": "./server/target/release/server 127.0.0.1:3000 portal.skyscapecloud.com"
@@ -29,11 +29,20 @@
   },
   "devDependencies": {
     "@openapitools/openapi-generator-cli": "^1.0.7-4.2.1",
-    "@types/node": "^12.12.14",
+    "@pollyjs/adapter-node-http": "^4.0.0",
+    "@pollyjs/core": "^3.0.0",
+    "@pollyjs/persister-fs": "^4.0.0",
+    "@types/mocha": "^5.2.7",
+    "@types/node": "^12.12.25",
+    "@types/pollyjs__adapter-node-http": "^2.0.0",
+    "@types/pollyjs__core": "^3.0.0",
+    "@types/pollyjs__persister-fs": "^2.0.0",
+    "mocha": "^7.0.0",
     "prettier": "^1.19.1",
     "ts-loader": "^6.2.1",
-    "typescript": "^3.7.2",
-    "webpack": "^4.41.2",
+    "ts-node": "^8.6.2",
+    "typescript": "^3.7.5",
+    "webpack": "^4.41.5",
     "webpack-cli": "^3.3.10"
   }
 }

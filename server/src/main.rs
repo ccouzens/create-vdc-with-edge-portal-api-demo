@@ -68,6 +68,7 @@ fn cleanse_set_cookies(path_base: &str, headers: &mut HeaderMap) {
 
 fn cleanse_response_headers(path_base: &str, headers: &mut HeaderMap) {
     headers.remove(http::header::STRICT_TRANSPORT_SECURITY);
+    headers.remove(http::header::ACCESS_CONTROL_ALLOW_ORIGIN);
     cleanse_set_cookies(path_base, headers);
 }
 
@@ -85,6 +86,7 @@ fn cleanse_response_headers_test() {
         "strict-transport-security",
         "max-age=31536000".parse().unwrap(),
     );
+    headers.append("Access-Control-Allow-Origin", "*".parse().unwrap());
 
     let mut expected = HeaderMap::new();
     expected.append("content-type", "application/json".parse().unwrap());

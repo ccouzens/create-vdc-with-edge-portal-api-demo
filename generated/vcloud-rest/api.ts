@@ -1046,7 +1046,7 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
             // authentication basicAuth required
             // http basic authentication required
             if (configuration && (configuration.username || configuration.password)) {
-                localVarHeaderParameter["Authorization"] = "Basic " + btoa(configuration.username + ":" + configuration.password);
+                localVarRequestOptions["auth"] = {username: configuration.username, password: configuration.password};
             }
 
 
